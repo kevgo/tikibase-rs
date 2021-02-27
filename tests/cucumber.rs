@@ -1,20 +1,19 @@
-use std::{cell::RefCell, convert::Infallible};
-
 use cucumber_rust::{async_trait, given, then, when, World, WorldInit};
+use std::convert::Infallible;
+use tempfile::{tempdir, TempDir};
 
+/// Mutable context for scenarios.
 #[derive(WorldInit)]
 pub struct MyWorld {
-  // You can use this struct for mutable context in scenarios.
-  foo: String,
-  bar: usize,
-  some_value: RefCell<u8>,
+  /// full path to the folder containing the workspace for this scenario
+  workspace: TempDir,
 }
 
 impl MyWorld {
-  async fn test_async_fn(&mut self) {
-    *self.some_value.borrow_mut() = 123u8;
-    self.bar = 123;
-  }
+  // async fn test_async_fn(&mut self) {
+  //   *self.some_value.borrow_mut() = 123u8;
+  //   self.bar = 123;
+  // }
 }
 
 #[async_trait(?Send)]
@@ -23,43 +22,52 @@ impl World for MyWorld {
 
   async fn new() -> Result<Self, Infallible> {
     Ok(Self {
-      foo: "wat".into(),
-      bar: 0,
-      some_value: RefCell::new(0),
+      workspace: tempdir().unwrap(),
     })
   }
 }
 
-#[given("a thing")]
-async fn a_thing(world: &mut MyWorld) {
-  world.foo = "elho".into();
-  world.test_async_fn().await;
+impl Drop for MyWorld {
+  fn drop(&mut self) {
+    println!("Dropping MyWorld!");
+  }
 }
 
-#[when(regex = "something goes (.*)")]
-async fn something_goes(_: &mut MyWorld, _wrong: String) {}
-
-#[given("I am trying out Cucumber")]
-fn i_am_trying_out(world: &mut MyWorld) {
-  world.foo = "Some string".to_string();
+#[given(regex = "^the workspace contains file \"(.*)\" with content:$")]
+fn the_workspace_contains_file_with_content(world: &mut MyWorld, filename: String) {
+  assert_eq!(filename, "implement");
 }
 
-#[when("I consider what I am doing")]
-fn i_consider(world: &mut MyWorld) {
-  let new_string = format!("{}.", &world.foo);
-  world.foo = new_string;
-}
+// #[given("a thing")]
+// async fn a_thing(world: &mut MyWorld) {
+//   world.foo = "elho".into();
+//   world.test_async_fn().await;
+// }
 
-#[then("I am interested in ATDD")]
-fn i_am_interested(world: &mut MyWorld) {
-  assert_eq!(world.foo, "Some string.");
-}
+// #[when(regex = "something goes (.*)")]
+// async fn something_goes(_: &mut MyWorld, _wrong: String) {}
 
-#[then(regex = "^we can (.*) rules with regex$")]
-fn we_can_regex(_: &mut MyWorld, action: String) {
-  // `action` can be anything implementing `FromStr`.
-  assert_eq!(action, "implement");
-}
+// #[given("I am trying out Cucumber")]
+// fn i_am_trying_out(world: &mut MyWorld) {
+//   world.foo = "Some string".to_string();
+// }
+
+// #[when("I consider what I am doing")]
+// fn i_consider(world: &mut MyWorld) {
+//   let new_string = format!("{}.", &world.foo);
+//   world.foo = new_string;
+// }
+
+// #[then("I am interested in ATDD")]
+// fn i_am_interested(world: &mut MyWorld) {
+//   assert_eq!(world.foo, "Some string.");
+// }
+
+// #[then(regex = "^we can (.*) rules with regex$")]
+// fn we_can_regex(_: &mut MyWorld, action: String) {
+//   // `action` can be anything implementing `FromStr`.
+//   assert_eq!(action, "implement");
+// }
 
 #[tokio::main]
 async fn main() {
